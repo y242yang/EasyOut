@@ -8,7 +8,8 @@
     "scheme": "easyout",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/easyoutlogo.png"
+      "icon": "./assets/images/easyoutlogo.png",
+      "bundleIdentifier": "com.anonymous.easyout"
     },
     "android": {
       "adaptiveIcon": {
