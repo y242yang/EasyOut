@@ -169,7 +169,7 @@ export default function ExpensesScreen() {
   const isTrip = group?.type === 'trip';
 
   const hotelsTotal = hotels.reduce((s, h) => s + h.rooms.reduce((rs, r) => rs + Number(r.cost), 0), 0);
-  const flightsTotal = flights.reduce((s, f) => s + Number(f.cost ?? 0), 0);
+  const flightsTotal = flights.reduce((s, f) => s + Number(f.cost ?? 0) + Number(f.luggage_cost ?? 0), 0);
   const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const total = (expensesTotal + hotelsTotal + flightsTotal).toFixed(2);
 
@@ -239,7 +239,7 @@ export default function ExpensesScreen() {
                   <Text style={styles.cardTitle}>{flight.departure_airport} → {flight.arrival_airport}</Text>
                   <Text style={styles.cardMeta}>Paid by {paidByNames(flight.paid_by)}</Text>
                 </View>
-                <Text style={styles.cardAmount}>${Number(flight.cost ?? 0).toFixed(2)}</Text>
+                <Text style={styles.cardAmount}>${(Number(flight.cost ?? 0) + Number(flight.luggage_cost ?? 0)).toFixed(2)}</Text>
               </TouchableOpacity>
             ))}
           </View>

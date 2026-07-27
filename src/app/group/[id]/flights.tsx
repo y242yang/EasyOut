@@ -62,6 +62,7 @@ export default function FlightsScreen() {
     departure_airport: '',
     arrival_airport: '',
     cost: '',
+    luggage_cost: '',
   });
   const [departureDate, setDepartureDate] = useState('');
   const [departureTime, setDepartureTime] = useState(new Date());
@@ -101,7 +102,7 @@ export default function FlightsScreen() {
   }
 
   function resetForm() {
-    setForm((f) => ({ ...f, airline: '', flight_number: '', departure_airport: '', arrival_airport: '', cost: '' }));
+    setForm((f) => ({ ...f, airline: '', flight_number: '', departure_airport: '', arrival_airport: '', cost: '', luggage_cost: '' }));
     setDepartureDate(''); setDepartureTime(new Date());
     setArrivalDate(''); setArrivalTime(new Date());
     setEditingFlightId(null);
@@ -126,6 +127,7 @@ export default function FlightsScreen() {
       departure_airport: flight.departure_airport,
       arrival_airport: flight.arrival_airport,
       cost: flight.cost != null ? String(flight.cost) : '',
+      luggage_cost: flight.luggage_cost != null ? String(flight.luggage_cost) : '',
     });
     const dep = splitDateTime(flight.departure_time);
     const arr = splitDateTime(flight.arrival_time);
@@ -166,6 +168,7 @@ export default function FlightsScreen() {
       departure_time: combineDateTime(departureDate, departureTime),
       arrival_time: combineDateTime(arrivalDate, arrivalTime),
       cost: form.cost ? parseFloat(form.cost) : null,
+      luggage_cost: form.luggage_cost ? parseFloat(form.luggage_cost) : null,
       paid_by: Array.from(paidBy),
     };
     const { error } = editingFlightId
@@ -201,7 +204,9 @@ export default function FlightsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.passenger}>{memberName(item.member_id)}</Text>
-            {item.cost && <Text style={styles.cost}>${Number(item.cost).toFixed(2)}</Text>}
+            {(item.cost || item.luggage_cost) && (
+              <Text style={styles.cost}>${(Number(item.cost ?? 0) + Number(item.luggage_cost ?? 0)).toFixed(2)}</Text>
+            )}
           </View>
           <View style={styles.routeRow}>
             <Text style={styles.airport}>{item.departure_airport}</Text>
@@ -213,6 +218,11 @@ export default function FlightsScreen() {
           )}
           <Text style={styles.meta}>Departs: {formatFlightTime(item.departure_time)}</Text>
           <Text style={styles.meta}>Arrives: {formatFlightTime(item.arrival_time)}</Text>
+          {item.luggage_cost != null && (
+            <Text style={styles.meta}>
+              Ticket: ${Number(item.cost ?? 0).toFixed(2)} + Luggage: ${Number(item.luggage_cost).toFixed(2)}
+            </Text>
+          )}
           <Text style={styles.paidBy}>
             Paid by {item.paid_by.length > 0 ? item.paid_by.map(memberName).join(', ') : '?'}
           </Text>
@@ -309,6 +319,7 @@ export default function FlightsScreen() {
               { key: 'airline', label: 'Airline (optional)', placeholder: 'ANA' },
               { key: 'flight_number', label: 'Flight # (optional)', placeholder: 'NH010' },
               { key: 'cost', label: 'Cost (optional)', placeholder: '850.00' },
+              { key: 'luggage_cost', label: 'Luggage Cost (optional)', placeholder: '60.00' },
             ].map(({ key, label, placeholder }) => (
               <View key={key}>
                 <Text style={styles.label}>{label}</Text>
@@ -318,7 +329,7 @@ export default function FlightsScreen() {
                   placeholderTextColor={Colors.dark.textSecondary}
                   value={(form as any)[key]}
                   onChangeText={(v) => setForm((f) => ({ ...f, [key]: v }))}
-                  keyboardType={key === 'cost' ? 'decimal-pad' : 'default'}
+                  keyboardType={key === 'cost' || key === 'luggage_cost' ? 'decimal-pad' : 'default'}
                 />
               </View>
             ))}

@@ -22,6 +22,8 @@ export default function GroupDetailScreen() {
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [hotelsTotal, setHotelsTotal] = useState(0);
+  const [flightsTotal, setFlightsTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
@@ -32,21 +34,31 @@ export default function GroupDetailScreen() {
   );
 
   async function fetchAll() {
-    const [groupRes, membersRes, expensesRes] = await Promise.all([
+    const [groupRes, membersRes, expensesRes, hotelsRes, flightsRes] = await Promise.all([
       supabase.from('groups').select('*').eq('id', id).single(),
       supabase.from('group_members').select('*').eq('group_id', id),
       supabase.from('expenses').select('*').eq('group_id', id).order('date', { ascending: false }),
+      supabase.from('hotels').select('id').eq('group_id', id),
+      supabase.from('flights').select('cost, luggage_cost').eq('group_id', id),
     ]);
 
     if (groupRes.error) Alert.alert('Error', groupRes.error.message);
     else setGroup(groupRes.data);
     setMembers(membersRes.data ?? []);
     setExpenses(expensesRes.data ?? []);
+
+    const hotelIds = (hotelsRes.data ?? []).map((h) => h.id);
+    const roomsRes = hotelIds.length > 0
+      ? await supabase.from('hotel_rooms').select('cost').in('hotel_id', hotelIds)
+      : { data: [] as { cost: number }[] };
+    setHotelsTotal((roomsRes.data ?? []).reduce((s, r) => s + Number(r.cost), 0));
+    setFlightsTotal((flightsRes.data ?? []).reduce((s, f) => s + Number(f.cost ?? 0) + Number(f.luggage_cost ?? 0), 0));
     setLoading(false);
   }
 
   function totalSpend() {
-    return expenses.reduce((sum, e) => sum + Number(e.amount), 0).toFixed(2);
+    const expensesTotal = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    return (expensesTotal + hotelsTotal + flightsTotal).toFixed(2);
   }
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;

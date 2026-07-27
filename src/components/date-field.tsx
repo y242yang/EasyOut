@@ -20,16 +20,26 @@ export function DateField({
   value,
   onChange,
   placeholder = 'Select date',
+  minimumDate,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  // ISO date string (e.g. a hotel's check-in) that this field can't precede.
+  minimumDate?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [temp, setTemp] = useState(() => fromISODate(value));
+  const min = minimumDate ? fromISODate(minimumDate) : undefined;
+
+  function initialValue() {
+    const current = fromISODate(value);
+    return min && current < min ? min : current;
+  }
+
+  const [temp, setTemp] = useState(initialValue);
 
   function openPicker() {
-    setTemp(fromISODate(value));
+    setTemp(initialValue());
     setOpen(true);
   }
 
@@ -45,6 +55,7 @@ export function DateField({
             value={temp}
             mode="date"
             display="default"
+            minimumDate={min}
             onChange={(event, d) => {
               setOpen(false);
               if (event.type === 'set' && d) onChange(toISODate(d));
@@ -59,6 +70,7 @@ export function DateField({
                 value={temp}
                 mode="date"
                 display="inline"
+                minimumDate={min}
                 onChange={(_, d) => { if (d) setTemp(d); }}
                 themeVariant="dark"
                 accentColor={Colors.dark.tint}

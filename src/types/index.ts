@@ -81,6 +81,7 @@ export interface Flight {
   departure_time: string;
   arrival_time: string;
   cost?: number | null;
+  luggage_cost?: number | null;
   paid_by: string[];
 }
 

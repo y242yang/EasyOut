@@ -122,6 +122,10 @@ export default function HotelsScreen() {
     ]);
   }
 
+  function removeRoom(idx: number) {
+    setRooms((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   function toggleRoomMember(roomIdx: number, memberId: string) {
     setRooms((prev) =>
       prev.map((r, i) => {
@@ -266,9 +270,15 @@ export default function HotelsScreen() {
             <Text style={styles.label}>Hotel Name</Text>
             <TextInput style={styles.input} placeholder="e.g. Park Hyatt Tokyo" placeholderTextColor={Colors.dark.textSecondary} value={hotelName} onChangeText={setHotelName} />
             <Text style={styles.label}>Check-In</Text>
-            <DateField value={checkIn} onChange={setCheckIn} />
+            <DateField
+              value={checkIn}
+              onChange={(v) => {
+                setCheckIn(v);
+                if (checkOut && checkOut < v) setCheckOut(v);
+              }}
+            />
             <Text style={styles.label}>Check-Out</Text>
-            <DateField value={checkOut} onChange={setCheckOut} />
+            <DateField value={checkOut} onChange={setCheckOut} minimumDate={checkIn} />
             <Text style={styles.label}>Notes (optional)</Text>
             <TextInput style={[styles.input, { height: 60 }]} placeholderTextColor={Colors.dark.textSecondary} value={hotelNotes} onChangeText={setHotelNotes} multiline />
 
@@ -279,7 +289,12 @@ export default function HotelsScreen() {
 
             {rooms.map((room, idx) => (
               <View key={idx} style={styles.roomForm}>
-                <Text style={styles.roomFormTitle}>Room {idx + 1}</Text>
+                <View style={styles.roomFormHeader}>
+                  <Text style={styles.roomFormTitle}>Room {idx + 1}</Text>
+                  <TouchableOpacity onPress={() => removeRoom(idx)}>
+                    <Text style={styles.removeRoomText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
                 <TextInput style={styles.input} placeholder="Label (e.g. Room 1)" placeholderTextColor={Colors.dark.textSecondary}
                   value={room.label} onChangeText={(v) => setRooms((r) => r.map((x, i) => i === idx ? { ...x, label: v } : x))} />
                 <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="Cost" placeholderTextColor={Colors.dark.textSecondary}
@@ -347,7 +362,9 @@ const styles = StyleSheet.create({
   roomsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.dark.text },
   roomForm: { marginTop: 16, padding: 14, backgroundColor: Colors.dark.backgroundElement, borderRadius: 12, borderWidth: 1, borderColor: Colors.dark.border },
-  roomFormTitle: { fontSize: 14, fontWeight: '600', marginBottom: 10, color: Colors.dark.text },
+  roomFormHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  roomFormTitle: { fontSize: 14, fontWeight: '600', color: Colors.dark.text },
+  removeRoomText: { fontSize: 13, fontWeight: '600', color: '#FF453A' },
   memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   memberChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement },
   memberChipActive: { borderColor: Colors.dark.tint, backgroundColor: Colors.dark.tintSoft },

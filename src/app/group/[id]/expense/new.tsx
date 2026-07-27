@@ -25,17 +25,26 @@ const CATEGORIES: { value: ExpenseCategory; label: string; icon: string }[] = [
   { value: 'activity', label: 'Activity', icon: '🎯' },
 ];
 
+function todayString() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export default function NewExpenseScreen() {
-  const { id, day_id, date: dayDate } = useLocalSearchParams<{ id: string; day_id?: string; date?: string }>();
+  const { id, day_id: initialDayId, date: dayDate } = useLocalSearchParams<{ id: string; day_id?: string; date?: string }>();
   const router = useRouter();
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [dayId, setDayId] = useState<string | undefined>(initialDayId);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('general');
   const [paidBy, setPaidBy] = useState<Set<string>>(new Set());
   const [splitWith, setSplitWith] = useState<Set<string>>(new Set());
-  const [date, setDate] = useState(dayDate ?? new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(dayDate ?? todayString());
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -65,6 +74,20 @@ export default function NewExpenseScreen() {
         // day, so there's no independent date to pick.
         if (data.type === 'hangout' && data.start_date) setDate(data.start_date);
       });
+    // Opened from the Expenses screen's general "+ Add Expense" (not from a
+    // specific day in Itinerary) -- if today falls within one of this trip's
+    // days, land the expense there instead of Unscheduled.
+    if (!initialDayId) {
+      supabase
+        .from('trip_days')
+        .select('*')
+        .eq('group_id', id)
+        .eq('date', todayString())
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setDayId(data.id);
+        });
+    }
   }, [id]);
 
   const isHangout = group?.type === 'hangout';
@@ -107,7 +130,7 @@ export default function NewExpenseScreen() {
           currency: 'USD',
           date,
           notes: notes.trim() || null,
-          day_id: day_id ?? null,
+          day_id: dayId ?? null,
         })
         .select()
         .single();
@@ -203,7 +226,7 @@ export default function NewExpenseScreen() {
             onPress={() =>
               router.push({
                 pathname: `/group/${id}/expense/scan`,
-                params: day_id ? { day_id, date } : { date },
+                params: dayId ? { day_id: dayId, date } : { date },
               })
             }>
             <Text style={styles.scanButtonText}>📷 Scan Receipt for Itemized Split</Text>
