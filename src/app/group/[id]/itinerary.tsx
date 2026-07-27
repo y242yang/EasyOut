@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,16 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import type { TripDay, Expense } from '@/types';
+import { Colors } from '@/constants/theme';
 
 type DayWithExpenses = TripDay & { expenses: Expense[] };
 
 const CATEGORY_ICONS: Record<string, string> = {
-  general: '💰', uber: '🚗', meal: '🍽', activity: '🎯',
-  car_rental: '🚙', hotel: '🏨', flight: '✈',
+  general: '💰', transportation: '🚗', meal: '🍽', activity: '🎯',
 };
 
 export default function ItineraryScreen() {
@@ -25,10 +25,12 @@ export default function ItineraryScreen() {
   const [days, setDays] = useState<DayWithExpenses[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchData();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchData();
+    }, [id])
+  );
 
   async function fetchData() {
     const [daysRes, expensesRes] = await Promise.all([
@@ -73,7 +75,7 @@ export default function ItineraryScreen() {
 
         <TouchableOpacity
           style={styles.addExpenseRow}
-          onPress={() => router.push({ pathname: `/group/${id}/expense/new`, params: { day_id: item.id } })}>
+          onPress={() => router.push({ pathname: `/group/${id}/expense/new`, params: { day_id: item.id, date: item.date } })}>
           <Text style={styles.addExpenseText}>+ Add expense to this day</Text>
         </TouchableOpacity>
       </View>
@@ -110,37 +112,39 @@ export default function ItineraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
-  back: { color: '#007AFF', fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '700' },
+  back: { color: Colors.dark.tint, fontSize: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.dark.text },
   list: { padding: 16 },
   daySection: {
     marginBottom: 20,
     borderRadius: 14,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: Colors.dark.backgroundElement,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
     overflow: 'hidden',
   },
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    backgroundColor: '#eef4ff',
+    backgroundColor: Colors.dark.tintSoft,
     gap: 8,
     flexWrap: 'wrap',
   },
-  dayNumber: { fontSize: 15, fontWeight: '700', color: '#007AFF' },
-  dayDate: { fontSize: 13, color: '#555' },
-  dayLabel: { fontSize: 13, color: '#333', flex: 1 },
-  dayTotal: { fontSize: 14, fontWeight: '700', color: '#007AFF' },
-  noExpenses: { padding: 14, color: '#aaa', fontSize: 14 },
-  expenseRow: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: '#ececec', gap: 10 },
+  dayNumber: { fontSize: 15, fontWeight: '700', color: Colors.dark.tint },
+  dayDate: { fontSize: 13, color: Colors.dark.textSecondary },
+  dayLabel: { fontSize: 13, color: Colors.dark.text, flex: 1 },
+  dayTotal: { fontSize: 14, fontWeight: '700', color: Colors.dark.tint },
+  noExpenses: { padding: 14, color: Colors.dark.textSecondary, fontSize: 14 },
+  expenseRow: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: Colors.dark.border, gap: 10 },
   expenseIcon: { fontSize: 18 },
-  expenseTitle: { flex: 1, fontSize: 14, fontWeight: '500' },
-  expenseAmount: { fontSize: 14, fontWeight: '600', color: '#333' },
-  addExpenseRow: { padding: 12, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: '#ececec' },
-  addExpenseText: { color: '#007AFF', fontSize: 14 },
+  expenseTitle: { flex: 1, fontSize: 14, fontWeight: '500', color: Colors.dark.text },
+  expenseAmount: { fontSize: 14, fontWeight: '600', color: Colors.dark.text },
+  addExpenseRow: { padding: 12, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: Colors.dark.border },
+  addExpenseText: { color: Colors.dark.tint, fontSize: 14 },
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#333' },
-  emptySubtext: { fontSize: 14, color: '#888', textAlign: 'center' },
+  emptyText: { fontSize: 18, fontWeight: '600', color: Colors.dark.text },
+  emptySubtext: { fontSize: 14, color: Colors.dark.textSecondary, textAlign: 'center' },
 });

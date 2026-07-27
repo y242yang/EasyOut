@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import type { Flight, GroupMember } from '@/types';
+import { Colors } from '@/constants/theme';
 
 export default function FlightsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,10 +36,12 @@ export default function FlightsScreen() {
     cost: '',
   });
 
-  useEffect(() => {
-    if (!id) return;
-    fetchData();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchData();
+    }, [id])
+  );
 
   async function fetchData() {
     const [flightsRes, membersRes] = await Promise.all([
@@ -159,7 +162,7 @@ export default function FlightsScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder={placeholder}
-                  placeholderTextColor="#999"
+                  placeholderTextColor={Colors.dark.textSecondary}
                   value={(form as any)[key]}
                   onChangeText={(v) => setForm((f) => ({ ...f, [key]: v }))}
                   keyboardType={key === 'cost' ? 'decimal-pad' : 'default'}
@@ -174,29 +177,29 @@ export default function FlightsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
-  back: { color: '#007AFF', fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '700' },
-  addBtn: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
+  back: { color: Colors.dark.tint, fontSize: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.dark.text },
+  addBtn: { color: Colors.dark.tint, fontSize: 16, fontWeight: '600' },
   list: { padding: 16, gap: 12 },
-  card: { padding: 16, backgroundColor: '#f8f8f8', borderRadius: 14 },
+  card: { padding: 16, backgroundColor: Colors.dark.backgroundElement, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  passenger: { fontSize: 15, fontWeight: '700' },
-  cost: { fontSize: 15, fontWeight: '600', color: '#007AFF' },
+  passenger: { fontSize: 15, fontWeight: '700', color: Colors.dark.text },
+  cost: { fontSize: 15, fontWeight: '600', color: Colors.dark.tint },
   routeRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
-  airport: { fontSize: 22, fontWeight: '700' },
-  arrow: { fontSize: 18, color: '#888' },
-  meta: { fontSize: 13, color: '#666', marginTop: 2 },
+  airport: { fontSize: 22, fontWeight: '700', color: Colors.dark.text },
+  arrow: { fontSize: 18, color: Colors.dark.textSecondary },
+  meta: { fontSize: 13, color: Colors.dark.textSecondary, marginTop: 2 },
   empty: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { color: '#888', fontSize: 16 },
-  modal: { flex: 1, backgroundColor: '#fff' },
+  emptyText: { color: Colors.dark.textSecondary, fontSize: 16 },
+  modal: { flex: 1, backgroundColor: Colors.dark.background },
   formContent: { padding: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 8, marginTop: 16 },
-  input: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, padding: 14, fontSize: 16 },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.dark.textSecondary, marginBottom: 8, marginTop: 16 },
+  input: { borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement, color: Colors.dark.text, borderRadius: 12, padding: 14, fontSize: 16 },
   memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0' },
-  memberChipActive: { borderColor: '#007AFF', backgroundColor: '#e8f2ff' },
-  memberChipText: { fontSize: 14, color: '#555' },
-  memberChipTextActive: { color: '#007AFF', fontWeight: '600' },
+  memberChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement },
+  memberChipActive: { borderColor: Colors.dark.tint, backgroundColor: Colors.dark.tintSoft },
+  memberChipText: { fontSize: 14, color: Colors.dark.textSecondary },
+  memberChipTextActive: { color: Colors.dark.tint, fontWeight: '600' },
 });

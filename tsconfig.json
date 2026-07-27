@@ -8,6 +8,9 @@
       ],
       "@/assets/*": [
         "./assets/*"
+      ],
+      "receipt-scanner": [
+        "./modules/receipt-scanner/index.ts"
       ]
     }
   },

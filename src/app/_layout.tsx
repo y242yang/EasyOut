@@ -1,29 +1,12 @@
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { useAuth } from '@/hooks/use-auth';
-
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (loading) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/sign-in');
-    } else if (session && inAuthGroup) {
-      router.replace('/(tabs)');
-    }
-  }, [session, loading, segments]);
-
-  return <>{children}</>;
-}
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   return (
-    <AuthGuard>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }} />
-    </AuthGuard>
+    </GestureHandlerRootView>
   );
 }

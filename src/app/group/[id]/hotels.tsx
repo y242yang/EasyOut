@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import {
   Alert,
   Modal,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import type { Hotel, HotelRoom, GroupMember } from '@/types';
+import { Colors } from '@/constants/theme';
 
 type HotelWithRooms = Hotel & { rooms: HotelRoom[] };
 
@@ -34,10 +35,12 @@ export default function HotelsScreen() {
     { label: 'Room 1', cost: '', memberIds: new Set() },
   ]);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchData();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchData();
+    }, [id])
+  );
 
   async function fetchData() {
     const [hotelsRes, membersRes] = await Promise.all([
@@ -159,13 +162,13 @@ export default function HotelsScreen() {
           </View>
           <ScrollView contentContainerStyle={styles.formContent}>
             <Text style={styles.label}>Hotel Name</Text>
-            <TextInput style={styles.input} placeholder="e.g. Park Hyatt Tokyo" placeholderTextColor="#999" value={hotelName} onChangeText={setHotelName} />
+            <TextInput style={styles.input} placeholder="e.g. Park Hyatt Tokyo" placeholderTextColor={Colors.dark.textSecondary} value={hotelName} onChangeText={setHotelName} />
             <Text style={styles.label}>Check-In</Text>
-            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#999" value={checkIn} onChangeText={setCheckIn} />
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.dark.textSecondary} value={checkIn} onChangeText={setCheckIn} />
             <Text style={styles.label}>Check-Out</Text>
-            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor="#999" value={checkOut} onChangeText={setCheckOut} />
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.dark.textSecondary} value={checkOut} onChangeText={setCheckOut} />
             <Text style={styles.label}>Notes (optional)</Text>
-            <TextInput style={[styles.input, { height: 60 }]} placeholderTextColor="#999" value={hotelNotes} onChangeText={setHotelNotes} multiline />
+            <TextInput style={[styles.input, { height: 60 }]} placeholderTextColor={Colors.dark.textSecondary} value={hotelNotes} onChangeText={setHotelNotes} multiline />
 
             <View style={styles.roomsHeader}>
               <Text style={styles.sectionTitle}>Rooms</Text>
@@ -175,9 +178,9 @@ export default function HotelsScreen() {
             {rooms.map((room, idx) => (
               <View key={idx} style={styles.roomForm}>
                 <Text style={styles.roomFormTitle}>Room {idx + 1}</Text>
-                <TextInput style={styles.input} placeholder="Label (e.g. Room 1)" placeholderTextColor="#999"
+                <TextInput style={styles.input} placeholder="Label (e.g. Room 1)" placeholderTextColor={Colors.dark.textSecondary}
                   value={room.label} onChangeText={(v) => setRooms((r) => r.map((x, i) => i === idx ? { ...x, label: v } : x))} />
-                <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="Cost" placeholderTextColor="#999"
+                <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="Cost" placeholderTextColor={Colors.dark.textSecondary}
                   keyboardType="decimal-pad" value={room.cost}
                   onChangeText={(v) => setRooms((r) => r.map((x, i) => i === idx ? { ...x, cost: v } : x))} />
                 <Text style={styles.label}>Who's in this room?</Text>
@@ -205,36 +208,36 @@ export default function HotelsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
-  back: { color: '#007AFF', fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '700' },
-  addBtn: { color: '#007AFF', fontSize: 16, fontWeight: '600' },
+  back: { color: Colors.dark.tint, fontSize: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.dark.text },
+  addBtn: { color: Colors.dark.tint, fontSize: 16, fontWeight: '600' },
   list: { padding: 16, gap: 12 },
-  card: { padding: 16, backgroundColor: '#f8f8f8', borderRadius: 14 },
+  card: { padding: 16, backgroundColor: Colors.dark.backgroundElement, borderRadius: 14, borderWidth: 1, borderColor: Colors.dark.border },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  hotelName: { fontSize: 16, fontWeight: '700' },
-  totalCost: { fontSize: 15, fontWeight: '600', color: '#007AFF' },
-  dates: { fontSize: 13, color: '#666', marginBottom: 8 },
-  notes: { fontSize: 13, color: '#888', marginBottom: 8 },
-  roomRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#e8e8e8' },
-  roomLabel: { fontSize: 14, fontWeight: '600' },
-  roomCost: { fontSize: 13, color: '#007AFF', marginTop: 1 },
-  roomMembers: { fontSize: 12, color: '#888', marginTop: 2 },
+  hotelName: { fontSize: 16, fontWeight: '700', color: Colors.dark.text },
+  totalCost: { fontSize: 15, fontWeight: '600', color: Colors.dark.tint },
+  dates: { fontSize: 13, color: Colors.dark.textSecondary, marginBottom: 8 },
+  notes: { fontSize: 13, color: Colors.dark.textSecondary, marginBottom: 8 },
+  roomRow: { paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.dark.border },
+  roomLabel: { fontSize: 14, fontWeight: '600', color: Colors.dark.text },
+  roomCost: { fontSize: 13, color: Colors.dark.tint, marginTop: 1 },
+  roomMembers: { fontSize: 12, color: Colors.dark.textSecondary, marginTop: 2 },
   empty: { alignItems: 'center', paddingTop: 60 },
-  emptyText: { color: '#888', fontSize: 16 },
-  modal: { flex: 1, backgroundColor: '#fff' },
+  emptyText: { color: Colors.dark.textSecondary, fontSize: 16 },
+  modal: { flex: 1, backgroundColor: Colors.dark.background },
   formContent: { padding: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 8, marginTop: 16 },
-  input: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, padding: 14, fontSize: 16 },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.dark.textSecondary, marginBottom: 8, marginTop: 16 },
+  input: { borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement, color: Colors.dark.text, borderRadius: 12, padding: 14, fontSize: 16 },
   roomsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
-  roomForm: { marginTop: 16, padding: 14, backgroundColor: '#f8f8f8', borderRadius: 12 },
-  roomFormTitle: { fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.dark.text },
+  roomForm: { marginTop: 16, padding: 14, backgroundColor: Colors.dark.backgroundElement, borderRadius: 12, borderWidth: 1, borderColor: Colors.dark.border },
+  roomFormTitle: { fontSize: 14, fontWeight: '600', marginBottom: 10, color: Colors.dark.text },
   memberRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  memberChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0' },
-  memberChipActive: { borderColor: '#007AFF', backgroundColor: '#e8f2ff' },
-  memberChipText: { fontSize: 14, color: '#555' },
-  memberChipTextActive: { color: '#007AFF', fontWeight: '600' },
-  splitPreview: { marginTop: 8, fontSize: 13, color: '#007AFF', fontWeight: '600' },
+  memberChip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement },
+  memberChipActive: { borderColor: Colors.dark.tint, backgroundColor: Colors.dark.tintSoft },
+  memberChipText: { fontSize: 14, color: Colors.dark.textSecondary },
+  memberChipTextActive: { color: Colors.dark.tint, fontWeight: '600' },
+  splitPreview: { marginTop: 8, fontSize: 13, color: Colors.dark.tint, fontWeight: '600' },
 });

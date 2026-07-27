@@ -12,44 +12,37 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/use-auth';
-import type { GroupType } from '@/types';
+import { ensureAnonymousSession } from '@/hooks/use-auth';
+import type { GroupType, Group } from '@/types';
+import { Colors } from '@/constants/theme';
 
 export default function NewGroupScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const [yourName, setYourName] = useState('');
   const [name, setName] = useState('');
   const [type, setType] = useState<GroupType>('hangout');
+  const [date, setDate] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleCreate() {
-    if (!name.trim() || !user) return;
+    if (!name.trim() || !yourName.trim()) return;
     setLoading(true);
     try {
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .insert({
-          name: name.trim(),
-          type,
-          created_by: user.id,
-          start_date: type === 'trip' && startDate ? startDate : null,
-          end_date: type === 'trip' && endDate ? endDate : null,
+      await ensureAnonymousSession();
+
+      const { data: group, error } = await supabase
+        .rpc('create_group_with_creator', {
+          p_name: name.trim(),
+          p_type: type,
+          p_start_date: type === 'trip' ? startDate : date,
+          p_end_date: type === 'trip' ? endDate : date,
+          p_creator_display_name: yourName.trim(),
         })
-        .select()
-        .single();
+        .single<Group>();
 
-      if (groupError) throw groupError;
-
-      // Add creator as first member
-      const { error: memberError } = await supabase.from('group_members').insert({
-        group_id: group.id,
-        user_id: user.id,
-        display_name: user.email?.split('@')[0] ?? 'Me',
-      });
-
-      if (memberError) throw memberError;
+      if (error) throw error;
 
       router.replace(`/group/${group.id}`);
     } catch (err: any) {
@@ -58,6 +51,11 @@ export default function NewGroupScreen() {
       setLoading(false);
     }
   }
+
+  const canSubmit =
+    name.trim() &&
+    yourName.trim() &&
+    (type === 'trip' ? startDate.trim() && endDate.trim() : date.trim());
 
   return (
     <SafeAreaView style={styles.container}>
@@ -70,11 +68,20 @@ export default function NewGroupScreen() {
           <View style={{ width: 60 }} />
         </View>
 
+        <Text style={styles.label}>Your Name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Ann"
+          placeholderTextColor={Colors.dark.textSecondary}
+          value={yourName}
+          onChangeText={setYourName}
+        />
+
         <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. Japan Trip, Friday Dinner"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.dark.textSecondary}
           value={name}
           onChangeText={setName}
         />
@@ -93,13 +100,13 @@ export default function NewGroupScreen() {
           ))}
         </View>
 
-        {type === 'trip' && (
+        {type === 'trip' ? (
           <>
             <Text style={styles.label}>Start Date</Text>
             <TextInput
               style={styles.input}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.dark.textSecondary}
               value={startDate}
               onChangeText={setStartDate}
             />
@@ -107,17 +114,28 @@ export default function NewGroupScreen() {
             <TextInput
               style={styles.input}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.dark.textSecondary}
               value={endDate}
               onChangeText={setEndDate}
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Date</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Colors.dark.textSecondary}
+              value={date}
+              onChangeText={setDate}
             />
           </>
         )}
 
         <TouchableOpacity
-          style={[styles.button, !name.trim() && styles.buttonDisabled]}
+          style={[styles.button, !canSubmit && styles.buttonDisabled]}
           onPress={handleCreate}
-          disabled={!name.trim() || loading}>
+          disabled={!canSubmit || loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -130,15 +148,17 @@ export default function NewGroupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   content: { padding: 20 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 },
-  back: { color: '#007AFF', fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '700' },
-  label: { fontSize: 13, fontWeight: '600', color: '#555', marginBottom: 8, marginTop: 16 },
+  back: { color: Colors.dark.tint, fontSize: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.dark.text },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.dark.textSecondary, marginBottom: 8, marginTop: 16 },
   input: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.backgroundElement,
+    color: Colors.dark.text,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
@@ -149,14 +169,15 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: Colors.dark.border,
+    backgroundColor: Colors.dark.backgroundElement,
     alignItems: 'center',
   },
-  typeChipActive: { borderColor: '#007AFF', backgroundColor: '#e8f2ff' },
-  typeChipText: { fontSize: 15, color: '#555' },
-  typeChipTextActive: { color: '#007AFF', fontWeight: '600' },
+  typeChipActive: { borderColor: Colors.dark.tint, backgroundColor: Colors.dark.tintSoft },
+  typeChipText: { fontSize: 15, color: Colors.dark.textSecondary },
+  typeChipTextActive: { color: Colors.dark.tint, fontWeight: '600' },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.dark.tint,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',

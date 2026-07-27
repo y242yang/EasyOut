@@ -2,12 +2,9 @@ export type GroupType = 'hangout' | 'trip';
 
 export type ExpenseCategory =
   | 'general'
-  | 'uber'
+  | 'transportation'
   | 'meal'
-  | 'activity'
-  | 'car_rental'
-  | 'hotel'
-  | 'flight';
+  | 'activity';
 
 export interface Profile {
   id: string;
@@ -26,6 +23,7 @@ export interface Group {
   updated_at: string;
   start_date?: string | null;
   end_date?: string | null;
+  join_code: string;
 }
 
 export interface GroupMember {
@@ -44,11 +42,16 @@ export interface Expense {
   title: string;
   amount: number;
   currency: string;
-  paid_by: string;
   date: string;
   receipt_url?: string | null;
   notes?: string | null;
   created_at: string;
+}
+
+export interface ExpensePayer {
+  id: string;
+  expense_id: string;
+  member_id: string;
 }
 
 export interface ExpenseSplit {
@@ -103,16 +106,4 @@ export interface HotelRoom {
   room_label: string;
   cost: number;
   member_ids: string[];
-}
-
-export interface WishListItem {
-  id: string;
-  group_id: string;
-  title: string;
-  description?: string | null;
-  location?: string | null;
-  added_by: string;
-  votes: string[];
-  is_completed: boolean;
-  created_at: string;
 }

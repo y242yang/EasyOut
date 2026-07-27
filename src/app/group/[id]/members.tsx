@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { MemberAvatar } from '@/components/member-avatar';
 import type { GroupMember } from '@/types';
+import { Colors } from '@/constants/theme';
 
 export default function MembersScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,10 +24,12 @@ export default function MembersScreen() {
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchMembers();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchMembers();
+    }, [id])
+  );
 
   async function fetchMembers() {
     const { data } = await supabase.from('group_members').select('*').eq('group_id', id);
@@ -85,7 +88,7 @@ export default function MembersScreen() {
         <TextInput
           style={styles.input}
           placeholder="Add member by name"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.dark.textSecondary}
           value={newName}
           onChangeText={setNewName}
           onSubmitEditing={handleAdd}
@@ -102,24 +105,24 @@ export default function MembersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
-  back: { color: '#007AFF', fontSize: 16 },
-  title: { fontSize: 20, fontWeight: '700' },
+  back: { color: Colors.dark.tint, fontSize: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: Colors.dark.text },
   list: { padding: 16, gap: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.dark.border,
     gap: 12,
   },
-  name: { flex: 1, fontSize: 16, fontWeight: '500' },
-  linked: { fontSize: 11, color: '#34c759', fontWeight: '600', backgroundColor: '#e8f8ed', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  addRow: { flexDirection: 'row', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-  input: { flex: 1, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, padding: 12, fontSize: 16 },
-  addBtn: { backgroundColor: '#007AFF', borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
+  name: { flex: 1, fontSize: 16, fontWeight: '500', color: Colors.dark.text },
+  linked: { fontSize: 11, color: '#34c759', fontWeight: '600', backgroundColor: '#113322', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  addRow: { flexDirection: 'row', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: Colors.dark.border },
+  input: { flex: 1, borderWidth: 1, borderColor: Colors.dark.border, backgroundColor: Colors.dark.backgroundElement, color: Colors.dark.text, borderRadius: 12, padding: 12, fontSize: 16 },
+  addBtn: { backgroundColor: Colors.dark.tint, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
   addBtnDisabled: { opacity: 0.4 },
   addBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

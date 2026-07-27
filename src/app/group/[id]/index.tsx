@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,14 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { MemberAvatar } from '@/components/member-avatar';
 import type { Group, GroupMember, Expense } from '@/types';
+import { Colors } from '@/constants/theme';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,10 +24,12 @@ export default function GroupDetailScreen() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!id) return;
-    fetchAll();
-  }, [id]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchAll();
+    }, [id])
+  );
 
   async function fetchAll() {
     const [groupRes, membersRes, expensesRes] = await Promise.all([
@@ -50,6 +54,12 @@ export default function GroupDetailScreen() {
 
   const isTrip = group.type === 'trip';
 
+  function shareCode() {
+    Share.share({
+      message: `Join "${group!.name}" on EasyOut with code ${group!.join_code}`,
+    });
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -61,6 +71,10 @@ export default function GroupDetailScreen() {
           {isTrip && group.start_date && (
             <Text style={styles.dates}>{group.start_date} — {group.end_date ?? '?'}</Text>
           )}
+          <TouchableOpacity style={styles.codeRow} onPress={shareCode}>
+            <Text style={styles.codeText}>Code: {group.join_code}</Text>
+            <Text style={styles.codeShare}>Share</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsRow}>
@@ -84,17 +98,26 @@ export default function GroupDetailScreen() {
           ))}
         </View>
 
+        <Text style={styles.sectionLabel}>Money</Text>
         <View style={styles.actionsGrid}>
-          <ActionButton label="Expenses" onPress={() => router.push(`/group/${id}/expenses`)} />
-          {isTrip && (
-            <>
-              <ActionButton label="Itinerary" onPress={() => router.push(`/group/${id}/itinerary`)} />
-              <ActionButton label="Flights" onPress={() => router.push(`/group/${id}/flights`)} />
-              <ActionButton label="Hotels" onPress={() => router.push(`/group/${id}/hotels`)} />
-              <ActionButton label="Wish List" onPress={() => router.push(`/group/${id}/wishlist`)} />
-            </>
-          )}
-          <ActionButton label="Members" onPress={() => router.push(`/group/${id}/members`)} />
+          <ActionCard icon="💰" label="Expenses" onPress={() => router.push(`/group/${id}/expenses`)} />
+          <ActionCard icon="⚖️" label="Balances" onPress={() => router.push(`/group/${id}/balances`)} />
+        </View>
+
+        {isTrip && (
+          <>
+            <Text style={styles.sectionLabel}>Trip Planning</Text>
+            <View style={styles.actionsRowThree}>
+              <ActionCard compact icon="🗓️" label="Itinerary" onPress={() => router.push(`/group/${id}/itinerary`)} />
+              <ActionCard compact icon="✈️" label="Flights" onPress={() => router.push(`/group/${id}/flights`)} />
+              <ActionCard compact icon="🏨" label="Hotels" onPress={() => router.push(`/group/${id}/hotels`)} />
+            </View>
+          </>
+        )}
+
+        <Text style={styles.sectionLabel}>Group</Text>
+        <View style={styles.actionsGrid}>
+          <ActionCard icon="👥" label="Members" onPress={() => router.push(`/group/${id}/members`)} wide />
         </View>
       </ScrollView>
 
@@ -109,46 +132,113 @@ export default function GroupDetailScreen() {
   );
 }
 
-function ActionButton({ label, onPress }: { label: string; onPress: () => void }) {
+function ActionCard({
+  icon,
+  label,
+  onPress,
+  wide,
+  compact,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  wide?: boolean;
+  compact?: boolean;
+}) {
   return (
-    <TouchableOpacity style={styles.actionButton} onPress={onPress}>
-      <Text style={styles.actionButtonText}>{label}</Text>
+    <TouchableOpacity
+      style={[styles.actionCard, wide && styles.actionCardWide, compact && styles.actionCardCompact]}
+      onPress={onPress}>
+      <Text style={styles.actionIcon}>{icon}</Text>
+      <Text style={[styles.actionLabel, compact && styles.actionLabelCompact]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: Colors.dark.background },
   header: { padding: 20, gap: 4 },
-  back: { color: '#007AFF', fontSize: 16, marginBottom: 8 },
-  groupName: { fontSize: 26, fontWeight: '700' },
-  dates: { fontSize: 14, color: '#888', marginTop: 2 },
+  back: { color: Colors.dark.tint, fontSize: 16, marginBottom: 8 },
+  groupName: { fontSize: 26, fontWeight: '700', color: Colors.dark.text },
+  dates: { fontSize: 14, color: Colors.dark.textSecondary, marginTop: 2 },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.dark.tintSoft,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  codeText: { fontSize: 13, fontWeight: '700', color: Colors.dark.tint, letterSpacing: 1 },
+  codeShare: { fontSize: 12, fontWeight: '600', color: Colors.dark.tint },
   statsRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, marginBottom: 24 },
   statCard: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: Colors.dark.backgroundElement,
     borderRadius: 14,
     padding: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
-  statValue: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
-  statLabel: { fontSize: 11, color: '#888' },
+  statValue: { fontSize: 20, fontWeight: '700', marginBottom: 2, color: Colors.dark.text },
+  statLabel: { fontSize: 11, color: Colors.dark.textSecondary },
   memberAvatarRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     marginBottom: 20,
     gap: -8,
   },
-  actionsGrid: { paddingHorizontal: 20, gap: 12 },
-  actionButton: {
-    padding: 16,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 14,
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.dark.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    marginTop: 4,
   },
-  actionButtonText: { fontSize: 16, fontWeight: '500', color: '#333' },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionCard: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    padding: 16,
+    backgroundColor: Colors.dark.backgroundElement,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
+    gap: 6,
+  },
+  actionCardWide: { flexBasis: '100%' },
+  actionsRowThree: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionCardCompact: {
+    flex: 1,
+    flexBasis: 'auto',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+  },
+  actionIcon: { fontSize: 22 },
+  actionLabel: { fontSize: 16, fontWeight: '500', color: Colors.dark.text },
+  actionLabelCompact: { fontSize: 13, textAlign: 'center' },
   fab: { padding: 16 },
   fabButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.dark.tint,
     borderRadius: 14,
     padding: 16,
     alignItems: 'center',

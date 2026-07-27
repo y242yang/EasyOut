@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/easyoutlogo.png",
-      "bundleIdentifier": "com.anonymous.easyout"
+      "bundleIdentifier": "com.annyang.easyout",
+      "infoPlist": {
+        "NSCameraUsageDescription": "EasyOut uses your camera to scan receipts for itemized expense splitting.",
+        "NSPhotoLibraryUsageDescription": "EasyOut uses your photo library so you can pick an existing receipt photo to split."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-image-picker",
       [
         "expo-splash-screen",
         {

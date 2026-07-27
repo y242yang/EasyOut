@@ -1,0 +1,7 @@
+{
+  "name": "receipt-scanner",
+  "version": "1.0.0",
+  "description": "On-device receipt OCR + itemized parsing, bridged from the easyout-receipt-parser C++ library.",
+  "main": "index.ts",
+  "types": "index.ts"
+}
