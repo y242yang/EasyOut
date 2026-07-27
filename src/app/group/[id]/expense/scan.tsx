@@ -9,12 +9,15 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { scanReceipt, type ParsedReceipt, type ReceiptItem } from 'receipt-scanner';
+import { DateField } from '@/components/date-field';
 import type { Group, GroupMember } from '@/types';
 import { Colors } from '@/constants/theme';
 
@@ -274,7 +277,8 @@ export default function ScanReceiptScreen() {
       )}
 
       {step === 'review' && (
-        <ScrollView contentContainerStyle={styles.content}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Title</Text>
           <TextInput style={styles.input} value={title} onChangeText={setTitle} />
 
@@ -284,7 +288,7 @@ export default function ScanReceiptScreen() {
               <Text style={styles.inputLockedText}>{date}</Text>
             </View>
           ) : (
-            <TextInput style={styles.input} value={date} onChangeText={setDate} />
+            <DateField value={date} onChange={setDate} />
           )}
 
           <Text style={styles.label}>Paid By</Text>
@@ -390,6 +394,7 @@ export default function ScanReceiptScreen() {
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Expense</Text>}
           </TouchableOpacity>
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );

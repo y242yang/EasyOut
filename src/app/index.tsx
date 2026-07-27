@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,17 @@ import {
   Alert,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, freshChannel } from '@/lib/supabase';
 import type { Group } from '@/types';
 import { Colors } from '@/constants/theme';
 import { getGroupStatus, daysUntilExpiry } from '@/lib/group-status';
+
+function byStartDate(a: Group, b: Group) {
+  // Undated (legacy) groups sort last rather than clumping at the top.
+  return (a.start_date ?? '9999-99-99').localeCompare(b.start_date ?? '9999-99-99');
+}
 
 export default function GroupsScreen() {
   const router = useRouter();
@@ -23,9 +28,18 @@ export default function GroupsScreen() {
   const [loading, setLoading] = useState(true);
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
 
-  useEffect(() => {
-    fetchGroups();
+  // Realtime alone isn't reliable right after the channel is created -- an
+  // insert that lands before the subscription has fully joined is silently
+  // missed, and the list only catches up whenever the *next* change fires a
+  // refetch. Refetching on every focus (not just once on mount) makes the
+  // list correct regardless of that race.
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroups();
+    }, [])
+  );
 
+  useEffect(() => {
     const channel = freshChannel('groups-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, fetchGroups)
       .subscribe();
@@ -138,10 +152,10 @@ export default function GroupsScreen() {
       ) : (
         <SectionList
           sections={[
-            { title: 'Current', data: groups.filter((g) => getGroupStatus(g) === 'current') },
-            { title: 'Future', data: groups.filter((g) => getGroupStatus(g) === 'future') },
-            { title: 'Past', data: groups.filter((g) => getGroupStatus(g) === 'past') },
-          ].filter((s) => s.data.length > 0 || s.title === 'Past')}
+            { title: 'Current', data: groups.filter((g) => getGroupStatus(g) === 'current').sort(byStartDate) },
+            { title: 'Future', data: groups.filter((g) => getGroupStatus(g) === 'future').sort(byStartDate) },
+            { title: 'Past', data: groups.filter((g) => getGroupStatus(g) === 'past').sort(byStartDate) },
+          ]}
           keyExtractor={(g) => g.id}
           renderItem={renderGroup}
           renderSectionHeader={({ section }) => (
@@ -155,8 +169,8 @@ export default function GroupsScreen() {
             </View>
           )}
           renderSectionFooter={({ section }) =>
-            section.title === 'Past' && section.data.length === 0 ? (
-              <Text style={styles.emptySectionText}>No past groups yet.</Text>
+            section.data.length === 0 ? (
+              <Text style={styles.emptySectionText}>No {section.title.toLowerCase()} groups.</Text>
             ) : null
           }
           contentContainerStyle={styles.list}

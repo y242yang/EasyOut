@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,21 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { DateField } from '@/components/date-field';
 import type { Hotel, HotelRoom, GroupMember } from '@/types';
 import { Colors } from '@/constants/theme';
 
 type HotelWithRooms = Hotel & { rooms: HotelRoom[] };
+type RoomForm = { label: string; cost: string; memberIds: Set<string>; paidBy: Set<string> };
+
+const EMPTY_ROOM: RoomForm = { label: 'Room 1', cost: '', memberIds: new Set(), paidBy: new Set() };
 
 export default function HotelsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,14 +33,14 @@ export default function HotelsScreen() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [hotelName, setHotelName] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [hotelNotes, setHotelNotes] = useState('');
-  const [rooms, setRooms] = useState<{ label: string; cost: string; memberIds: Set<string> }[]>([
-    { label: 'Room 1', cost: '', memberIds: new Set() },
-  ]);
+  const [rooms, setRooms] = useState<RoomForm[]>([{ ...EMPTY_ROOM, memberIds: new Set(), paidBy: new Set() }]);
+  const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -61,8 +68,58 @@ export default function HotelsScreen() {
     setLoading(false);
   }
 
+  function resetForm() {
+    setHotelName(''); setCheckIn(''); setCheckOut(''); setHotelNotes('');
+    setRooms([{ label: 'Room 1', cost: '', memberIds: new Set(), paidBy: new Set() }]);
+    setEditingHotelId(null);
+  }
+
+  function openAdd() {
+    resetForm();
+    setAdding(true);
+  }
+
+  function openEdit(hotel: HotelWithRooms) {
+    swipeableRefs.current[hotel.id]?.close();
+    setEditingHotelId(hotel.id);
+    setHotelName(hotel.name);
+    setCheckIn(hotel.check_in);
+    setCheckOut(hotel.check_out);
+    setHotelNotes(hotel.notes ?? '');
+    setRooms(
+      hotel.rooms.length > 0
+        ? hotel.rooms.map((r) => ({
+            label: r.room_label,
+            cost: String(r.cost),
+            memberIds: new Set(r.member_ids),
+            paidBy: new Set(r.paid_by),
+          }))
+        : [{ label: 'Room 1', cost: '', memberIds: new Set(), paidBy: new Set() }]
+    );
+    setAdding(true);
+  }
+
+  function handleDelete(hotel: HotelWithRooms) {
+    swipeableRefs.current[hotel.id]?.close();
+    Alert.alert('Delete Hotel', `Delete "${hotel.name}"? This can't be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('hotels').delete().eq('id', hotel.id);
+          if (error) Alert.alert('Error', error.message);
+          else fetchData();
+        },
+      },
+    ]);
+  }
+
   function addRoom() {
-    setRooms((prev) => [...prev, { label: `Room ${prev.length + 1}`, cost: '', memberIds: new Set() }]);
+    setRooms((prev) => [
+      ...prev,
+      { label: `Room ${prev.length + 1}`, cost: '', memberIds: new Set(), paidBy: new Set() },
+    ]);
   }
 
   function toggleRoomMember(roomIdx: number, memberId: string) {
@@ -76,29 +133,54 @@ export default function HotelsScreen() {
     );
   }
 
+  function toggleRoomPaidBy(roomIdx: number, memberId: string) {
+    setRooms((prev) =>
+      prev.map((r, i) => {
+        if (i !== roomIdx) return r;
+        const next = new Set(r.paidBy);
+        next.has(memberId) ? next.delete(memberId) : next.add(memberId);
+        return { ...r, paidBy: next };
+      })
+    );
+  }
+
   async function handleSave() {
     if (!hotelName.trim() || !checkIn || !checkOut) { Alert.alert('Missing fields'); return; }
     setSaving(true);
     try {
-      const { data: hotel, error: hotelErr } = await supabase
-        .from('hotels')
-        .insert({ group_id: id, name: hotelName.trim(), check_in: checkIn, check_out: checkOut, notes: hotelNotes || null })
-        .select().single();
-      if (hotelErr) throw hotelErr;
+      let hotelId = editingHotelId;
+
+      if (editingHotelId) {
+        const { error: updateErr } = await supabase
+          .from('hotels')
+          .update({ name: hotelName.trim(), check_in: checkIn, check_out: checkOut, notes: hotelNotes || null })
+          .eq('id', editingHotelId);
+        if (updateErr) throw updateErr;
+
+        const { error: deleteErr } = await supabase.from('hotel_rooms').delete().eq('hotel_id', editingHotelId);
+        if (deleteErr) throw deleteErr;
+      } else {
+        const { data: hotel, error: hotelErr } = await supabase
+          .from('hotels')
+          .insert({ group_id: id, name: hotelName.trim(), check_in: checkIn, check_out: checkOut, notes: hotelNotes || null })
+          .select().single();
+        if (hotelErr) throw hotelErr;
+        hotelId = hotel.id;
+      }
 
       for (const room of rooms) {
         if (!room.label.trim()) continue;
         await supabase.from('hotel_rooms').insert({
-          hotel_id: hotel.id,
+          hotel_id: hotelId,
           room_label: room.label.trim(),
           cost: parseFloat(room.cost) || 0,
           member_ids: Array.from(room.memberIds),
+          paid_by: Array.from(room.paidBy),
         });
       }
 
       setAdding(false);
-      setHotelName(''); setCheckIn(''); setCheckOut(''); setHotelNotes('');
-      setRooms([{ label: 'Room 1', cost: '', memberIds: new Set() }]);
+      resetForm();
       fetchData();
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -114,28 +196,44 @@ export default function HotelsScreen() {
   function renderHotel({ item }: { item: HotelWithRooms }) {
     const totalCost = item.rooms.reduce((s, r) => s + Number(r.cost), 0);
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.hotelName}>🏨 {item.name}</Text>
-          {totalCost > 0 && <Text style={styles.totalCost}>${totalCost.toFixed(2)}</Text>}
-        </View>
-        <Text style={styles.dates}>{item.check_in} → {item.check_out}</Text>
-        {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
-        {item.rooms.map((room) => (
-          <View key={room.id} style={styles.roomRow}>
-            <Text style={styles.roomLabel}>{room.room_label}</Text>
-            <Text style={styles.roomCost}>${Number(room.cost).toFixed(2)}</Text>
-            <Text style={styles.roomMembers}>
-              {room.member_ids.length > 0
-                ? room.member_ids.map(memberName).join(', ')
-                : 'Unassigned'}
-              {room.member_ids.length > 1
-                ? ` (${(Number(room.cost) / room.member_ids.length).toFixed(2)} each)`
-                : ''}
-            </Text>
+      <Swipeable
+        ref={(ref) => { swipeableRefs.current[item.id] = ref; }}
+        renderRightActions={() => (
+          <View style={styles.swipeActions}>
+            <TouchableOpacity style={[styles.swipeAction, styles.editAction]} onPress={() => openEdit(item)}>
+              <Text style={styles.swipeActionIcon}>✏️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.swipeAction, styles.deleteAction]} onPress={() => handleDelete(item)}>
+              <Text style={styles.swipeActionIcon}>✕</Text>
+            </TouchableOpacity>
           </View>
-        ))}
-      </View>
+        )}>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.hotelName}>🏨 {item.name}</Text>
+            {totalCost > 0 && <Text style={styles.totalCost}>${totalCost.toFixed(2)}</Text>}
+          </View>
+          <Text style={styles.dates}>{item.check_in} → {item.check_out}</Text>
+          {item.notes && <Text style={styles.notes}>{item.notes}</Text>}
+          {item.rooms.map((room) => (
+            <View key={room.id} style={styles.roomRow}>
+              <Text style={styles.roomLabel}>{room.room_label}</Text>
+              <Text style={styles.roomCost}>${Number(room.cost).toFixed(2)}</Text>
+              <Text style={styles.roomMembers}>
+                {room.member_ids.length > 0
+                  ? room.member_ids.map(memberName).join(', ')
+                  : 'Unassigned'}
+                {room.member_ids.length > 1
+                  ? ` (${(Number(room.cost) / room.member_ids.length).toFixed(2)} each)`
+                  : ''}
+              </Text>
+              <Text style={styles.roomPaidBy}>
+                Paid by {room.paid_by.length > 0 ? room.paid_by.map(memberName).join(', ') : '?'}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Swipeable>
     );
   }
 
@@ -144,7 +242,7 @@ export default function HotelsScreen() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}><Text style={styles.back}>← Back</Text></TouchableOpacity>
         <Text style={styles.title}>Hotels</Text>
-        <TouchableOpacity onPress={() => setAdding(true)}><Text style={styles.addBtn}>+ Add</Text></TouchableOpacity>
+        <TouchableOpacity onPress={openAdd}><Text style={styles.addBtn}>+ Add</Text></TouchableOpacity>
       </View>
 
       {loading ? <ActivityIndicator style={{ flex: 1 }} /> : (
@@ -156,17 +254,21 @@ export default function HotelsScreen() {
       <Modal visible={adding} animationType="slide" presentationStyle="pageSheet">
         <SafeAreaView style={styles.modal}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => setAdding(false)}><Text style={styles.back}>Cancel</Text></TouchableOpacity>
-            <Text style={styles.title}>Add Hotel</Text>
+            <TouchableOpacity onPress={() => { setAdding(false); resetForm(); }}><Text style={styles.back}>Cancel</Text></TouchableOpacity>
+            <Text style={styles.title}>{editingHotelId ? 'Edit Hotel' : 'Add Hotel'}</Text>
             <TouchableOpacity onPress={handleSave} disabled={saving}><Text style={[styles.addBtn, saving && { opacity: 0.4 }]}>Save</Text></TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.formContent}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
+          <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Hotel Name</Text>
             <TextInput style={styles.input} placeholder="e.g. Park Hyatt Tokyo" placeholderTextColor={Colors.dark.textSecondary} value={hotelName} onChangeText={setHotelName} />
             <Text style={styles.label}>Check-In</Text>
-            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.dark.textSecondary} value={checkIn} onChangeText={setCheckIn} />
+            <DateField value={checkIn} onChange={setCheckIn} />
             <Text style={styles.label}>Check-Out</Text>
-            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.dark.textSecondary} value={checkOut} onChangeText={setCheckOut} />
+            <DateField value={checkOut} onChange={setCheckOut} />
             <Text style={styles.label}>Notes (optional)</Text>
             <TextInput style={[styles.input, { height: 60 }]} placeholderTextColor={Colors.dark.textSecondary} value={hotelNotes} onChangeText={setHotelNotes} multiline />
 
@@ -193,6 +295,16 @@ export default function HotelsScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
+                <Text style={styles.label}>Paid By</Text>
+                <View style={styles.memberRow}>
+                  {members.map((m) => (
+                    <TouchableOpacity key={m.id}
+                      style={[styles.memberChip, room.paidBy.has(m.id) && styles.memberChipActive]}
+                      onPress={() => toggleRoomPaidBy(idx, m.id)}>
+                      <Text style={[styles.memberChipText, room.paidBy.has(m.id) && styles.memberChipTextActive]}>{m.display_name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 {room.memberIds.size > 0 && room.cost && (
                   <Text style={styles.splitPreview}>
                     ${(parseFloat(room.cost || '0') / room.memberIds.size).toFixed(2)} each
@@ -201,6 +313,7 @@ export default function HotelsScreen() {
               </View>
             ))}
           </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
@@ -224,6 +337,7 @@ const styles = StyleSheet.create({
   roomLabel: { fontSize: 14, fontWeight: '600', color: Colors.dark.text },
   roomCost: { fontSize: 13, color: Colors.dark.tint, marginTop: 1 },
   roomMembers: { fontSize: 12, color: Colors.dark.textSecondary, marginTop: 2 },
+  roomPaidBy: { fontSize: 12, color: Colors.dark.tint, marginTop: 2 },
   empty: { alignItems: 'center', paddingTop: 60 },
   emptyText: { color: Colors.dark.textSecondary, fontSize: 16 },
   modal: { flex: 1, backgroundColor: Colors.dark.background },
@@ -240,4 +354,16 @@ const styles = StyleSheet.create({
   memberChipText: { fontSize: 14, color: Colors.dark.textSecondary },
   memberChipTextActive: { color: Colors.dark.tint, fontWeight: '600' },
   splitPreview: { marginTop: 8, fontSize: 13, color: Colors.dark.tint, fontWeight: '600' },
+  swipeActions: { flexDirection: 'row', alignItems: 'center', marginLeft: 8 },
+  swipeAction: {
+    width: 56,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 14,
+    marginLeft: 6,
+  },
+  editAction: { backgroundColor: Colors.dark.tint },
+  deleteAction: { backgroundColor: '#FF453A' },
+  swipeActionIcon: { fontSize: 18 },
 });

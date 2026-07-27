@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, freshChannel } from '@/lib/supabase';
-import type { Expense, Group, GroupMember, TripDay } from '@/types';
+import type { Expense, Flight, Group, GroupMember, Hotel, HotelRoom, TripDay } from '@/types';
 import { Colors } from '@/constants/theme';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -22,21 +22,37 @@ const CATEGORY_ICONS: Record<string, string> = {
   activity: '🎯',
 };
 
+type HotelWithRooms = Hotel & { rooms: HotelRoom[] };
+
+type Row =
+  | { kind: 'day'; day: TripDay | null; index: number; items: Expense[] }
+  | { kind: 'hotels'; hotels: HotelWithRooms[] }
+  | { kind: 'flights'; flights: Flight[] };
+
 export default function ExpensesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [group, setGroup] = useState<Group | null>(null);
   const [days, setDays] = useState<TripDay[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [hotels, setHotels] = useState<HotelWithRooms[]>([]);
+  const [flights, setFlights] = useState<Flight[]>([]);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [payersByExpense, setPayersByExpense] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
 
+  // Realtime alone can miss an insert that lands before the channel has
+  // fully joined, so also refetch on every focus rather than just once.
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      fetchData();
+    }, [id])
+  );
+
   useEffect(() => {
     if (!id) return;
-    fetchData();
-
     const channel = freshChannel('expenses-' + id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter: `group_id=eq.${id}` }, fetchData)
       .subscribe();
@@ -44,17 +60,29 @@ export default function ExpensesScreen() {
   }, [id]);
 
   async function fetchData() {
-    const [groupRes, daysRes, expRes, memRes] = await Promise.all([
+    const [groupRes, daysRes, expRes, memRes, hotelsRes, flightsRes] = await Promise.all([
       supabase.from('groups').select('*').eq('id', id).single(),
       supabase.from('trip_days').select('*').eq('group_id', id).order('order'),
       supabase.from('expenses').select('*').eq('group_id', id).order('date', { ascending: false }),
       supabase.from('group_members').select('*').eq('group_id', id),
+      supabase.from('hotels').select('*').eq('group_id', id).order('check_in'),
+      supabase.from('flights').select('*').eq('group_id', id).order('departure_time'),
     ]);
     setGroup(groupRes.data);
     setDays(daysRes.data ?? []);
     const exps = expRes.data ?? [];
     setExpenses(exps);
     setMembers(memRes.data ?? []);
+    setFlights(flightsRes.data ?? []);
+
+    const hotelList = hotelsRes.data ?? [];
+    const hotelsWithRooms: HotelWithRooms[] = await Promise.all(
+      hotelList.map(async (h) => {
+        const { data: roomData } = await supabase.from('hotel_rooms').select('*').eq('hotel_id', h.id);
+        return { ...h, rooms: roomData ?? [] };
+      })
+    );
+    setHotels(hotelsWithRooms);
 
     if (exps.length > 0) {
       const { data: payers } = await supabase
@@ -79,6 +107,10 @@ export default function ExpensesScreen() {
 
   function payerNames(expenseId: string) {
     const ids = payersByExpense[expenseId] ?? [];
+    return ids.length > 0 ? ids.map(memberName).join(', ') : '?';
+  }
+
+  function paidByNames(ids: string[]) {
     return ids.length > 0 ? ids.map(memberName).join(', ') : '?';
   }
 
@@ -134,17 +166,104 @@ export default function ExpensesScreen() {
     );
   }
 
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0).toFixed(2);
   const isTrip = group?.type === 'trip';
 
-  const dayGroups = isTrip
-    ? days.map((day, i) => ({
-        day,
-        index: i,
-        items: expenses.filter((e) => e.day_id === day.id),
-      }))
+  const hotelsTotal = hotels.reduce((s, h) => s + h.rooms.reduce((rs, r) => rs + Number(r.cost), 0), 0);
+  const flightsTotal = flights.reduce((s, f) => s + Number(f.cost ?? 0), 0);
+  const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const total = (expensesTotal + hotelsTotal + flightsTotal).toFixed(2);
+
+  const dayGroups: Row[] = isTrip
+    ? days.map((day, i) => ({ kind: 'day' as const, day, index: i, items: expenses.filter((e) => e.day_id === day.id) }))
     : [];
   const unscheduled = isTrip ? expenses.filter((e) => !e.day_id) : [];
+
+  const rows: Row[] = isTrip
+    ? [
+        ...dayGroups,
+        ...(unscheduled.length > 0 ? [{ kind: 'day' as const, day: null, index: -1, items: unscheduled }] : []),
+        ...(hotels.length > 0 ? [{ kind: 'hotels' as const, hotels }] : []),
+        ...(flights.length > 0 ? [{ kind: 'flights' as const, flights }] : []),
+      ]
+    : [];
+
+  function rowKey(row: Row, index: number) {
+    if (row.kind === 'day') return row.day?.id ?? 'unscheduled';
+    return `${row.kind}-${index}`;
+  }
+
+  function renderRow({ item }: { item: Row }) {
+    if (item.kind === 'hotels') {
+      return (
+        <View style={styles.daySection}>
+          <View style={styles.dayHeader}>
+            <Text style={styles.dayNumber}>🏨 Hotels</Text>
+            <Text style={styles.daySubtotal}>${hotelsTotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.dayItems}>
+            {item.hotels.flatMap((hotel) =>
+              hotel.rooms.map((room) => (
+                <TouchableOpacity
+                  key={room.id}
+                  style={styles.card}
+                  onPress={() => router.push(`/group/${id}/hotels`)}>
+                  <Text style={styles.icon}>🏨</Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{hotel.name} · {room.room_label}</Text>
+                    <Text style={styles.cardMeta}>Paid by {paidByNames(room.paid_by)} · {hotel.check_in}</Text>
+                  </View>
+                  <Text style={styles.cardAmount}>${Number(room.cost).toFixed(2)}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    if (item.kind === 'flights') {
+      return (
+        <View style={styles.daySection}>
+          <View style={styles.dayHeader}>
+            <Text style={styles.dayNumber}>✈️ Flights</Text>
+            <Text style={styles.daySubtotal}>${flightsTotal.toFixed(2)}</Text>
+          </View>
+          <View style={styles.dayItems}>
+            {item.flights.map((flight) => (
+              <TouchableOpacity
+                key={flight.id}
+                style={styles.card}
+                onPress={() => router.push(`/group/${id}/flights`)}>
+                <Text style={styles.icon}>✈️</Text>
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>{flight.departure_airport} → {flight.arrival_airport}</Text>
+                  <Text style={styles.cardMeta}>Paid by {paidByNames(flight.paid_by)}</Text>
+                </View>
+                <Text style={styles.cardAmount}>${Number(flight.cost ?? 0).toFixed(2)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    const subtotal = item.items.reduce((s, e) => s + Number(e.amount), 0);
+    return (
+      <View style={styles.daySection}>
+        <View style={styles.dayHeader}>
+          <Text style={styles.dayNumber}>{item.day ? `Day ${item.index + 1}` : 'Unscheduled'}</Text>
+          {item.day && <Text style={styles.dayDate}>{item.day.date}</Text>}
+          {item.day?.label && <Text style={styles.dayLabel}>{item.day.label}</Text>}
+          <Text style={styles.daySubtotal}>${subtotal.toFixed(2)}</Text>
+        </View>
+        {item.items.length === 0 ? (
+          <Text style={styles.noExpenses}>No expenses</Text>
+        ) : (
+          <View style={styles.dayItems}>{item.items.map((e) => renderExpenseRow(e))}</View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -160,36 +279,15 @@ export default function ExpensesScreen() {
         <ActivityIndicator style={{ flex: 1 }} />
       ) : isTrip ? (
         <FlatList
-          data={[...dayGroups, ...(unscheduled.length > 0 ? [{ day: null, index: -1, items: unscheduled }] : [])]}
-          keyExtractor={(g) => g.day?.id ?? 'unscheduled'}
+          data={rows}
+          keyExtractor={rowKey}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>No expenses yet.</Text>
             </View>
           }
-          renderItem={({ item: group }) => {
-            const subtotal = group.items.reduce((s, e) => s + Number(e.amount), 0);
-            return (
-              <View style={styles.daySection}>
-                <View style={styles.dayHeader}>
-                  <Text style={styles.dayNumber}>
-                    {group.day ? `Day ${group.index + 1}` : 'Unscheduled'}
-                  </Text>
-                  {group.day && <Text style={styles.dayDate}>{group.day.date}</Text>}
-                  {group.day?.label && <Text style={styles.dayLabel}>{group.day.label}</Text>}
-                  <Text style={styles.daySubtotal}>${subtotal.toFixed(2)}</Text>
-                </View>
-                {group.items.length === 0 ? (
-                  <Text style={styles.noExpenses}>No expenses</Text>
-                ) : (
-                  <View style={styles.dayItems}>
-                    {group.items.map((e) => renderExpenseRow(e))}
-                  </View>
-                )}
-              </View>
-            );
-          }}
+          renderItem={renderRow}
         />
       ) : (
         <FlatList

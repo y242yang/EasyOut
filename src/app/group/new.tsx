@@ -8,11 +8,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { ensureAnonymousSession } from '@/hooks/use-auth';
+import { DateField } from '@/components/date-field';
 import type { GroupType, Group } from '@/types';
 import { Colors } from '@/constants/theme';
 
@@ -59,7 +62,8 @@ export default function NewGroupScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.back}>← Back</Text>
@@ -103,32 +107,14 @@ export default function NewGroupScreen() {
         {type === 'trip' ? (
           <>
             <Text style={styles.label}>Start Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.dark.textSecondary}
-              value={startDate}
-              onChangeText={setStartDate}
-            />
+            <DateField value={startDate} onChange={setStartDate} />
             <Text style={styles.label}>End Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.dark.textSecondary}
-              value={endDate}
-              onChangeText={setEndDate}
-            />
+            <DateField value={endDate} onChange={setEndDate} />
           </>
         ) : (
           <>
             <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.dark.textSecondary}
-              value={date}
-              onChangeText={setDate}
-            />
+            <DateField value={date} onChange={setDate} />
           </>
         )}
 
@@ -143,6 +129,7 @@ export default function NewGroupScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

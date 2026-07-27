@@ -8,10 +8,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
+import { DateField } from '@/components/date-field';
 import type { Expense, ExpenseCategory, ExpenseSplit, Group, GroupMember } from '@/types';
 import { Colors } from '@/constants/theme';
 
@@ -211,7 +214,8 @@ export default function ExpenseDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setEditing(false)}>
             <Text style={styles.back}>← Cancel</Text>
@@ -232,7 +236,7 @@ export default function ExpenseDetailScreen() {
             <Text style={styles.inputLockedText}>{date}</Text>
           </View>
         ) : (
-          <TextInput style={styles.input} value={date} onChangeText={setDate} />
+          <DateField value={date} onChange={setDate} />
         )}
 
         <Text style={styles.label}>Category</Text>
@@ -310,6 +314,7 @@ export default function ExpenseDetailScreen() {
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

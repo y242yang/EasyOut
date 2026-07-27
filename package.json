@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/ui": "~56.0.15",
     "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@supabase/supabase-js": "^2.107.0",
     "expo": "~56.0.8",
     "expo-constants": "~56.0.16",

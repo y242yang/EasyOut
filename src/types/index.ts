@@ -81,6 +81,7 @@ export interface Flight {
   departure_time: string;
   arrival_time: string;
   cost?: number | null;
+  paid_by: string[];
 }
 
 export interface FlightSplit {
@@ -106,4 +107,5 @@ export interface HotelRoom {
   room_label: string;
   cost: number;
   member_ids: string[];
+  paid_by: string[];
 }

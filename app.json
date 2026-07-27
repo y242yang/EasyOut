@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.annyang.easyout",
       "infoPlist": {
         "NSCameraUsageDescription": "EasyOut uses your camera to scan receipts for itemized expense splitting.",
-        "NSPhotoLibraryUsageDescription": "EasyOut uses your photo library so you can pick an existing receipt photo to split."
+        "NSPhotoLibraryUsageDescription": "EasyOut uses your photo library so you can pick an existing receipt photo to split.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -20,7 +21,10 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/easyoutlogo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -38,11 +42,19 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0d990e7e-f6c7-4a95-9f39-9bee780abe23"
+      }
+    },
+    "owner": "y242yang"
   }
 }
