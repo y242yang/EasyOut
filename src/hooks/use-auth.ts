@@ -32,3 +32,15 @@ export async function ensureAnonymousSession() {
   if (error) throw error;
   return data.session!;
 }
+
+// Deletes the caller's auth user and everything of theirs that no one else
+// shares -- see the delete_my_account() migration for what survives and why.
+// Sign out with scope 'local' rather than the default: the default posts to
+// the server to revoke the session, and by this point the user backing it is
+// already gone, so that call can only fail. All we still need is for the
+// stale token to leave AsyncStorage.
+export async function deleteAccount() {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw error;
+  await supabase.auth.signOut({ scope: 'local' });
+}

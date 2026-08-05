@@ -128,6 +128,10 @@ export default function GroupsScreen() {
         <Text style={styles.brandText}>
           Easy<Text style={styles.brandTextAccent}>Out</Text>
         </Text>
+        <View style={styles.brandSpacer} />
+        <TouchableOpacity onPress={() => router.push('/settings')} hitSlop={8}>
+          <Text style={styles.settingsIcon}>⚙</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.header}>
@@ -196,6 +200,8 @@ const styles = StyleSheet.create({
   logo: { width: 34, height: 34, borderRadius: 9 },
   brandText: { fontSize: 19, fontWeight: '800', color: Colors.dark.text, letterSpacing: 0.2 },
   brandTextAccent: { color: Colors.dark.tint },
+  brandSpacer: { flex: 1 },
+  settingsIcon: { fontSize: 20, color: Colors.dark.textSecondary },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
