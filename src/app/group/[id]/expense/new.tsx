@@ -225,8 +225,8 @@ export default function NewExpenseScreen() {
             style={styles.scanButton}
             onPress={() =>
               router.push({
-                pathname: `/group/${id}/expense/scan`,
-                params: dayId ? { day_id: dayId, date } : { date },
+                pathname: '/group/[id]/expense/scan',
+                params: dayId ? { id, day_id: dayId, date } : { id, date },
               })
             }>
             <Text style={styles.scanButtonText}>📷 Scan Receipt for Itemized Split</Text>

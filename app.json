@@ -21,10 +21,7 @@
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/easyoutlogo.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -32,15 +29,20 @@
     },
     "plugins": [
       "expo-router",
-      "expo-image-picker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "EasyOut uses your camera to scan receipts for itemized expense splitting.",
+          "photosPermission": "EasyOut uses your photo library so you can pick an existing receipt photo to split.",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
-          "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
-          }
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 180
         }
       ],
       "@react-native-community/datetimepicker"

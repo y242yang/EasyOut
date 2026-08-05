@@ -75,7 +75,7 @@ export default function ItineraryScreen() {
 
         <TouchableOpacity
           style={styles.addExpenseRow}
-          onPress={() => router.push({ pathname: `/group/${id}/expense/new`, params: { day_id: item.id, date: item.date } })}>
+          onPress={() => router.push({ pathname: '/group/[id]/expense/new', params: { id, day_id: item.id, date: item.date } })}>
           <Text style={styles.addExpenseText}>+ Add expense to this day</Text>
         </TouchableOpacity>
       </View>

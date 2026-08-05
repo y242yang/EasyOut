@@ -124,7 +124,7 @@ export default function GroupsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.brandBanner}>
-        <Image source={require('@/assets/images/easyoutlogo.png')} style={styles.logo} />
+        <Image source={require('@/assets/images/logo-mark.png')} style={styles.logo} />
         <Text style={styles.brandText}>
           Easy<Text style={styles.brandTextAccent}>Out</Text>
         </Text>
