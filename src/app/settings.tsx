@@ -29,9 +29,10 @@ export default function SettingsScreen() {
   function confirmDelete() {
     Alert.alert(
       'Delete Account',
-      "This deletes your account and every group where you're the only member. " +
-        "Groups you share with other people stay -- your name remains on what you've " +
-        'already paid or owe so they can still settle up. This can\'t be undone.',
+      "This deletes your account and any group where you're the only real user -- " +
+        'including groups where you added people by typing their names. Groups that ' +
+        "other people joined with the app will stay, and your name remains on what you've " +
+        "already paid or owe so they can still settle up. This can't be undone.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: runDelete },
