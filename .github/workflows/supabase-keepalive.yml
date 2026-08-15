@@ -1,0 +1,29 @@
+name: Supabase keep-alive
+
+# Supabase pauses Free-plan projects after ~7 days without API activity.
+# pg_cron jobs running inside the database do not count, so ping from outside.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/groups?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "HTTP $status"
+          # 200 (rows) and 401/403 (RLS refused) all reach the database, which
+          # is what keeps the project active. Anything else means it is down.
+          case "$status" in
+            200|401|403) exit 0 ;;
+            *) echo "Unexpected status — project may be paused"; exit 1 ;;
+          esac
