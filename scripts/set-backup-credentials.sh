@@ -15,6 +15,8 @@ if [ ! -t 0 ]; then
   exit 1
 fi
 
+echo "Paste the raw password, not the encoded form from a connection string."
+echo "(e.g. 'pa@ss', never 'pa%40ss' — encoding is handled below.)"
 read -rsp "Supabase database password: " password
 echo
 
