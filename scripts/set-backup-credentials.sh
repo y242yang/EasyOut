@@ -10,6 +10,11 @@ PROJECT_REF="mknyvshurpqzpuzogsrx"
 POOLER_HOST="aws-1-us-west-2.pooler.supabase.com"
 CRED_FILE="$HOME/.easyout-backup.env"
 
+if [ ! -t 0 ]; then
+  echo "This script needs an interactive terminal; run it from Terminal.app." >&2
+  exit 1
+fi
+
 read -rsp "Supabase database password: " password
 echo
 
